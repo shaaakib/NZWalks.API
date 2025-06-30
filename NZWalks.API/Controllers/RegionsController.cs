@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using NZWalks.API.Data;
 using NZWalks.API.Models.Domain;
 using NZWalks.API.Models.DTO;
+using NZWalks.API.Repository.Interface;
 
 namespace NZWalks.API.Controllers
 {
@@ -12,11 +13,11 @@ namespace NZWalks.API.Controllers
     [ApiController]
     public class RegionsController : ControllerBase
     {
-        private readonly NZWalksDbContext dbContext;
+        private readonly IRegionRepository regionRepository;
 
-        public RegionsController(NZWalksDbContext dbContext)
+        public RegionsController(NZWalksDbContext dbContext, IRegionRepository regionRepository)
         {
-            this.dbContext = dbContext;
+            this.regionRepository = regionRepository;
         }
 
         // GET ALL REGIONS
@@ -25,7 +26,7 @@ namespace NZWalks.API.Controllers
         public async Task<IActionResult> GetAll()
         {  
             // Get Data From Database - Domain models
-            var regionsDomain = await dbContext.Regions.ToListAsync();
+            var regionsDomain = await regionRepository.GetAllAsync();
 
             // Map Dmain Models to DTOS
 
@@ -55,9 +56,9 @@ namespace NZWalks.API.Controllers
         {
             // Get Region Dmain Model From Database
             //var regionDomain = await  dbContext.Regions.FindAsync(id);
-            var regionDomain = await dbContext.Regions.FirstOrDefaultAsync(x => x.Id == id);
-           
-           if(regionDomain == null)
+            var regionDomain = await regionRepository.GetByIdAsync(id);
+
+            if (regionDomain == null)
             {
                 return NotFound();
             }
@@ -94,8 +95,7 @@ namespace NZWalks.API.Controllers
 
             // Use Domain Model to create Region
 
-            await dbContext.Regions.AddAsync(regionDomainModel);
-            await dbContext.SaveChangesAsync();
+            regionDomainModel = await regionRepository.CreateAsync(regionDomainModel);
 
             // Map Domain model back to DTO
             var regionDto = new RegionDto
@@ -116,20 +116,21 @@ namespace NZWalks.API.Controllers
         [Route("{id:Guid}")]
         public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateRegionRequestDto updateRegionRequestDto)
         {
-          // Check if region exists
-           var regionDomainModel = await dbContext.Regions.FirstOrDefaultAsync(x => x.Id == id);
+            // Map DTO to Domain Model
+            var regionDomainModel = new Region
+            {
+                Code = updateRegionRequestDto.Code,
+                Name = updateRegionRequestDto.Name,
+                RegionImageUrl = updateRegionRequestDto.RegionImageUrl
+            };
 
-            if(regionDomainModel == null)
+            // Check if region exists
+            regionDomainModel =  await regionRepository.UpdateAsync(id, regionDomainModel);
+
+            if (regionDomainModel == null)
             {
                 return NotFound();
             }
-
-            // Map DTO to Domain model
-            regionDomainModel.Code = updateRegionRequestDto.Code;
-            regionDomainModel.Name = updateRegionRequestDto.Name;
-            regionDomainModel.RegionImageUrl = updateRegionRequestDto.RegionImageUrl;
-
-            await dbContext.SaveChangesAsync();
 
             // Convert Domain Model to DTO
 
@@ -152,16 +153,13 @@ namespace NZWalks.API.Controllers
         [Route("{id:guid}")]
         public async Task<IActionResult> Delete([FromRoute] Guid id)
         {
-           var regionDomainModel = await dbContext.Regions.FirstOrDefaultAsync(x => x.Id == id);
+           var regionDomainModel = await regionRepository.DeleteAsync(id);
+            // Check if region exists
 
-           if(regionDomainModel == null)
+            if (regionDomainModel == null)
             {
                 return NotFound();
             }
-
-            // Delete region
-            dbContext.Regions.Remove(regionDomainModel);
-            await dbContext.SaveChangesAsync();
 
             // return delete Region back
             // map Domain Model to DTO
