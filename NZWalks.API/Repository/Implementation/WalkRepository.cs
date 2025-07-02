@@ -1,4 +1,5 @@
-﻿using NZWalks.API.Data;
+﻿using Microsoft.EntityFrameworkCore;
+using NZWalks.API.Data;
 using NZWalks.API.Models.Domain;
 using NZWalks.API.Repository.Interface;
 
@@ -18,6 +19,11 @@ namespace NZWalks.API.Repository.Implementation
             await dbContext.SaveChangesAsync();
 
             return walk;
+        }
+
+        public async Task<List<Walk>> GetAllAsync()
+        {
+           return await dbContext.Walks.Include("Difficulty").Include("Region").ToListAsync();
         }
     }
 }
